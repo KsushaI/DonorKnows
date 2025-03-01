@@ -195,7 +195,7 @@ def main():
 
     # Register handlers
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & filters.User(username=MANAGER_USERNAMES) & filters.Reply(), handle_manager_reply))
+    app.add_handler(MessageHandler(filters.TEXT & filters.User(username=MANAGER_USERNAMES) & filters.REPLY, handle_manager_reply))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     # Start the bot with webhook
