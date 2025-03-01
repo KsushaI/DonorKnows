@@ -129,6 +129,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             logger.warning("[handle_message] Нет менеджеров для пересылки сообщения.")
             await update.message.reply_text("В настоящее время нет доступных менеджеров. Пожалуйста, попробуйте позже.")
+# Temporary handler to log group ID
+async def handle_group_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(f"Group ID: {update.message.chat.id}")
 
 # Handle manager replies
 async def handle_manager_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -194,7 +197,8 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & filters.User(user_id=MANAGER_CHAT_IDS) & filters.REPLY, handle_manager_reply))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
+    # Register the temporary handler
+    app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, handle_group_message))
     # Start the bot with webhook
     app.run_webhook(
         listen="0.0.0.0",  # Listen on all interfaces
