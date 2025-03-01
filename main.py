@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 # Load manager usernames from environment variable
 def load_manager_usernames():
     manager_usernames = os.getenv("MANAGER_USERNAMES", "")
-    return [username.strip().lower() for username in manager_usernames.split(",")] if manager_usernames else []
+    return [username.strip() for username in manager_usernames.split(",")] if manager_usernames else []
 
 MANAGER_USERNAMES = load_manager_usernames()
 
@@ -76,7 +76,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"[handle_message] Пользователь @{user_username} (ID: {user_chat_id}) отправил сообщение: {user_message}")
 
     # Skip processing if the message is from a manager and is a reply
-    if update.message.from_user.username and update.message.from_user.username.lower() in MANAGER_USERNAMES and update.message.reply_to_message:
+    if update.message.from_user.username and update.message.from_user.username in MANAGER_USERNAMES and update.message.reply_to_message:
         logger.info(f"[handle_message] Сообщение от менеджера @{user_username} (ID: {user_chat_id}) пропущено, так как это ответ.")
         return
 
@@ -139,7 +139,7 @@ async def handle_manager_reply(update: Update, context: ContextTypes.DEFAULT_TYP
     logger.info(f"[handle_manager_reply] Входящее сообщение от пользователя @{update.message.from_user.username} (ID: {update.message.from_user.id}).")
 
     # Check if the message is from a manager
-    if update.message.from_user.username and update.message.from_user.username.lower() in MANAGER_USERNAMES:
+    if update.message.from_user.username and update.message.from_user.username in MANAGER_USERNAMES:
         manager_username = update.message.from_user.username
         manager_id = update.message.from_user.id
 
