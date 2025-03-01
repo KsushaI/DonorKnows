@@ -2,7 +2,7 @@ from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 import logging
 # Токен вашего бота
-TOKEN = '7757493590:AAFhoCEhlao8M_v4ZP_XYaf8gOFFHRjJiK4'
+TOKEN = ''
 
 # Список вопросов по категориям
 QUESTIONS = {
