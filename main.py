@@ -3,12 +3,12 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 import logging
 import os
 
-# Read the bot token from an environment variable
+# Чтение токена бота из переменной окружения
 TOKEN = os.getenv("BOT_TOKEN")
 if not TOKEN:
     raise ValueError("No BOT_TOKEN environment variable found!")
 
-# List of questions by category
+# Список вопросов по категориям
 QUESTIONS = {
     "Общие вопросы": [
         "Что случится с плазмой?",
@@ -21,7 +21,7 @@ QUESTIONS = {
     ]
 }
 
-# Answers to questions
+# Ответы на вопросы
 REPLIES = {
     "Что случится с плазмой?": "Её проверят на безопасность",
     "Нужно ли мне приходить повторно?": "Да, приходи, мы тебя ждём ;)",
@@ -35,64 +35,144 @@ REPLIES = {
     "Куда я попал?": "Сюда",
 }
 
-# Manager or group ID (can be obtained via @userinfobot)
+# ID менеджера или группы
 MANAGER_CHAT_ID = 1120634377
 
-# Styled "Back" button
+# Стилизованная кнопка "Назад"
 BACK_BUTTON = "⬅️ Назад"
 
-# Logging setup
+# Словарь для хранения связи между сообщениями пользователя и менеджера
+user_manager_messages = {}
+
+# Настройка логирования
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
-        logging.FileHandler("bot.log", encoding="utf-8"),  # Log to file
-        logging.StreamHandler()  # Log to console
+        logging.FileHandler("bot.log", encoding="utf-8"),  # Логирование в файл
+        logging.StreamHandler()  # Логирование в консоль
     ]
 )
 logger = logging.getLogger(__name__)
 
-# Command /start
+# Команда /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"User {update.message.from_user.username} started the bot.")
     keyboard = [[category] for category in QUESTIONS.keys()]
     reply_markup = ReplyKeyboardMarkup(keyboard)
     await update.message.reply_text("Вас приветствует бот для доноров🩸\nВы можете написать вопрос менеджеру в строке ниже или выбрать категорию часто задаваемых вопросов:", reply_markup=reply_markup)
 
-# Handle text messages
+# Обработка текстовых сообщений
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
-    logger.info(f"User {update.message.from_user.username} sent: {user_message}")
+    user_chat_id = update.message.chat_id
+    user_message_id = update.message.message_id
+    user_username = update.message.from_user.username  # Получаем username пользователя
+
+    # Логируем полученное сообщение от пользователя
+    logger.info(f"Пользователь @{user_username} (ID: {user_chat_id}) отправил сообщение: {user_message}")
 
     if user_message == BACK_BUTTON:
-        # If "Back" button is pressed, return to category selection
+        # Если нажата кнопка "Назад", возвращаемся к выбору категории
         keyboard = [[category] for category in QUESTIONS.keys()]
         reply_markup = ReplyKeyboardMarkup(keyboard)
         await update.message.reply_text("Выберите категорию:", reply_markup=reply_markup)
+        logger.info(f"Пользователь @{user_username} (ID: {user_chat_id}) нажал кнопку 'Назад'.")
     elif user_message in QUESTIONS:
-        # If a category is selected, show questions from that category
+        # Если выбрана категория, показываем вопросы из этой категории
         keyboard = [[question] for question in QUESTIONS[user_message]] + [[BACK_BUTTON]]
         reply_markup = ReplyKeyboardMarkup(keyboard)
         await update.message.reply_text(f"Вопросы в категории '{user_message}':", reply_markup=reply_markup)
+        logger.info(f"Пользователь @{user_username} (ID: {user_chat_id}) выбрал категорию: {user_message}.")
     elif user_message in REPLIES:
-        # If the question is in the list, send the answer
+        # Если вопрос есть в списке, отправляем ответ
         await update.message.reply_text(REPLIES[user_message])
+        logger.info(f"Пользователь @{user_username} (ID: {user_chat_id}) задал вопрос: {user_message}. Ответ: {REPLIES[user_message]}")
     else:
-        # If the question is not in the list, forward it to the manager
-        await context.bot.send_message(
+        # Если вопроса нет, пересылаем сообщение менеджеру
+        forwarded_message = await context.bot.forward_message(
             chat_id=MANAGER_CHAT_ID,
-            text=f"Новый вопрос от пользователя @{update.message.from_user.username}:\n{user_message}"
+            from_chat_id=user_chat_id,
+            message_id=user_message_id
         )
+
+        # Логируем пересылку сообщения менеджеру
+        logger.info(f"Сообщение пользователя @{user_username} (ID: {user_chat_id}) переслано менеджеру. ID пересланного сообщения: {forwarded_message.message_id}.")
+
+        # Сохраняем связь между сообщением менеджера и пользователя
+        user_manager_messages[forwarded_message.message_id] = {
+            "user_chat_id": user_chat_id,
+            "user_username": user_username,
+            "user_message_id": user_message_id
+        }
+
+        # Логируем сохранение связи в словаре
+        logger.info(f"Связь сохранена: ID пересланного сообщения {forwarded_message.message_id} -> Пользователь @{user_username} (ID: {user_chat_id}).")
+
         await update.message.reply_text("Ваш вопрос передан менеджеру. Ожидайте ответа.")
 
-# Main function
+# Обработка ответов менеджера
+async def handle_manager_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Check if the message is from the manager
+    if update.message.from_user.id == MANAGER_CHAT_ID:
+        # Получаем username и ID менеджера
+        manager_username = update.message.from_user.username
+        manager_id = update.message.from_user.id
+
+        # Логируем информацию о менеджере
+        logger.info(f"Менеджер @{manager_username} (ID: {manager_id}) отправил сообщение.")
+
+        # Проверяем, является ли сообщение ответом на другое сообщение
+        if update.message.reply_to_message:
+            replied_message_id = update.message.reply_to_message.message_id
+
+            # Логируем факт получения ответа от менеджера
+            logger.info(f"Менеджер @{manager_username} (ID: {manager_id}) ответил на сообщение с ID {replied_message_id}.")
+
+            # Проверяем, есть ли связь между этим сообщением и пользователем
+            if replied_message_id in user_manager_messages:
+                user_data = user_manager_messages[replied_message_id]
+                user_chat_id = user_data["user_chat_id"]
+                user_username = user_data["user_username"]  # Получаем username пользователя
+
+                # Логируем отправку ответа пользователю
+                logger.info(
+                    f"Ответ менеджера @{manager_username} (ID: {manager_id}) пересылается пользователю @{user_username} (ID: {user_chat_id})."
+                )
+
+                # Отправляем ответ менеджера пользователю
+                await context.bot.send_message(
+                    chat_id=user_chat_id,
+                    text=f"Ответ от менеджера: {update.message.text}"
+                )
+
+                # Логируем удаление записи из словаря
+                logger.info(f"Запись для сообщения с ID {replied_message_id} удалена из user_manager_messages.")
+
+                # Удаляем запись из словаря (опционально)
+                del user_manager_messages[replied_message_id]
+            else:
+                # Логируем, если связь не найдена
+                logger.warning(f"Связь для сообщения с ID {replied_message_id} не найдена в user_manager_messages.")
+        else:
+            # Логируем, если сообщение не является ответом
+            logger.info(f"Менеджер @{manager_username} (ID: {manager_id}) отправил сообщение, но оно не является ответом на другое сообщение.")
+    else:
+        # Логируем, если сообщение не от менеджера
+        logger.info(f"Сообщение от пользователя @{update.message.from_user.username} (ID: {update.message.from_user.id}) не обрабатывается как ответ менеджера.")
+
+# Основная функция
 def main():
     app = Application.builder().token(TOKEN).build()
 
-    # Register commands
+    # Регистрируем команды
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    # Set webhook
+
+    # Регистрируем обработчик для ответов менеджера
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_manager_reply))
+
+    # Запуск бота
     app.run_webhook(
         listen="0.0.0.0",  # Listen on all interfaces
         port=5000,  # Port to listen on
