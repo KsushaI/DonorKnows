@@ -1,8 +1,12 @@
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 import logging
+import os
 # Токен вашего бота
-TOKEN = ''
+# Read the bot token from an environment variable
+TOKEN = os.getenv("BOT_TOKEN")
+if not TOKEN:
+    raise ValueError("No BOT_TOKEN environment variable found!")
 
 # Список вопросов по категориям
 QUESTIONS = {
