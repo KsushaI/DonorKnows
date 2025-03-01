@@ -14,12 +14,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Load manager chat IDs from environment variable
-def load_manager_chat_ids():
-    manager_chat_ids = os.getenv("MANAGER_CHAT_IDS", "")
-    return [int(id.strip()) for id in manager_chat_ids.split(",")] if manager_chat_ids else []
-
-MANAGER_CHAT_IDS = load_manager_chat_ids()
+# Load manager group chat ID from environment variable
+MANAGER_GROUP_CHAT_ID = int(os.getenv("MANAGER_GROUP_CHAT_ID", 0))  # Replace with your manager group ID
 
 # List of questions by category
 QUESTIONS = {
@@ -51,7 +47,7 @@ REPLIES = {
 # Styled "Back" button
 BACK_BUTTON = "⬅️ Назад"
 
-# Dictionary to store the relationship between user and manager messages
+# Dictionary to store the relationship between user and forwarded messages
 user_manager_messages = {}
 
 # Command /start
@@ -75,9 +71,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Log the received message
     logger.info(f"[handle_message] Пользователь @{user_username} (ID: {user_chat_id}) отправил сообщение: {user_message}")
 
-    # Skip processing if the message is from a manager and is a reply
-    if update.message.from_user.id in MANAGER_CHAT_IDS and update.message.reply_to_message:
-        logger.info(f"[handle_message] Сообщение от менеджера @{user_username} (ID: {user_chat_id}) пропущено, так как это ответ.")
+    # Skip processing if the message is from the manager group and is a reply
+    if update.message.chat.id == MANAGER_GROUP_CHAT_ID and update.message.reply_to_message:
+        logger.info(f"[handle_message] Сообщение из группы менеджеров пропущено, так как это ответ.")
         return
 
     if user_message == BACK_BUTTON:
@@ -97,20 +93,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(REPLIES[user_message])
         logger.info(f"[handle_message] Пользователь @{user_username} (ID: {user_chat_id}) задал вопрос: {user_message}. Ответ: {REPLIES[user_message]}")
     else:
-        # Forward the message to the first manager (or implement round-robin logic)
-        if MANAGER_CHAT_IDS:
-            manager_chat_id = MANAGER_CHAT_IDS[0]  # Forward to the first manager
-
+        # Forward the message to the manager group
+        if MANAGER_GROUP_CHAT_ID:
             try:
                 # Forward the message
                 forwarded_message = await context.bot.forward_message(
-                    chat_id=manager_chat_id,
+                    chat_id=MANAGER_GROUP_CHAT_ID,
                     from_chat_id=user_chat_id,
                     message_id=user_message_id
                 )
 
                 # Log the forwarded message
-                logger.info(f"[handle_message] Сообщение пользователя @{user_username} (ID: {user_chat_id}) переслано менеджеру (ID: {manager_chat_id}). ID пересланного сообщения: {forwarded_message.message_id}.")
+                logger.info(f"[handle_message] Сообщение пользователя @{user_username} (ID: {user_chat_id}) переслано в группу менеджеров (ID: {MANAGER_GROUP_CHAT_ID}). ID пересланного сообщения: {forwarded_message.message_id}.")
 
                 # Store the relationship between the forwarded message and the user
                 user_manager_messages[forwarded_message.message_id] = {
@@ -122,36 +116,27 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 # Log the stored relationship
                 logger.info(f"[handle_message] Связь сохранена: ID пересланного сообщения {forwarded_message.message_id} -> Пользователь @{user_username} (ID: {user_chat_id}).")
 
-                await update.message.reply_text("Ваш вопрос передан менеджеру. Ожидайте ответа.")
+                await update.message.reply_text("Ваш вопрос передан менеджерам. Ожидайте ответа.")
             except Exception as e:
-                logger.error(f"[handle_message] Ошибка при пересылке сообщения менеджеру (ID: {manager_chat_id}): {e}")
-                await update.message.reply_text("Произошла ошибка при пересылке вопроса менеджеру. Пожалуйста, попробуйте позже.")
+                logger.error(f"[handle_message] Ошибка при пересылке сообщения в группу менеджеров (ID: {MANAGER_GROUP_CHAT_ID}): {e}")
+                await update.message.reply_text("Произошла ошибка при пересылке вопроса менеджерам. Пожалуйста, попробуйте позже.")
         else:
-            logger.warning("[handle_message] Нет менеджеров для пересылки сообщения.")
+            logger.warning("[handle_message] ID группы менеджеров не настроен.")
             await update.message.reply_text("В настоящее время нет доступных менеджеров. Пожалуйста, попробуйте позже.")
-# Temporary handler to log group ID
-async def handle_group_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.info(f"Group ID: {update.message.chat.id}")
 
-# Handle manager replies
+# Handle manager replies in the group
 async def handle_manager_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Log the incoming message
     logger.info(f"[handle_manager_reply] Входящее сообщение от пользователя @{update.message.from_user.username} (ID: {update.message.from_user.id}).")
 
-    # Check if the message is from a manager
-    if update.message.from_user.id in MANAGER_CHAT_IDS:
-        manager_username = update.message.from_user.username
-        manager_id = update.message.from_user.id
-
-        # Log manager information
-        logger.info(f"[handle_manager_reply] Менеджер @{manager_username} (ID: {manager_id}) отправил сообщение.")
-
+    # Check if the message is from the managers' group
+    if update.message.chat.id == MANAGER_GROUP_CHAT_ID:
         # Check if the message is a reply
         if update.message.reply_to_message:
             replied_message_id = update.message.reply_to_message.message_id
 
             # Log the replied message
-            logger.info(f"[handle_manager_reply] Менеджер @{manager_username} (ID: {manager_id}) ответил на сообщение с ID {replied_message_id}.")
+            logger.info(f"[handle_manager_reply] Менеджер @{update.message.from_user.username} (ID: {update.message.from_user.id}) ответил на сообщение с ID {replied_message_id}.")
 
             # Check if the replied message is linked to a user
             if replied_message_id in user_manager_messages:
@@ -160,7 +145,7 @@ async def handle_manager_reply(update: Update, context: ContextTypes.DEFAULT_TYP
                 user_username = user_data["user_username"]
 
                 # Log the forwarding of the reply to the user
-                logger.info(f"[handle_manager_reply] Ответ менеджера @{manager_username} (ID: {manager_id}) пересылается пользователю @{user_username} (ID: {user_chat_id}).")
+                logger.info(f"[handle_manager_reply] Ответ менеджера @{update.message.from_user.username} (ID: {update.message.from_user.id}) пересылается пользователю @{user_username} (ID: {user_chat_id}).")
 
                 # Send the manager's reply to the user
                 await context.bot.send_message(
@@ -178,9 +163,9 @@ async def handle_manager_reply(update: Update, context: ContextTypes.DEFAULT_TYP
                 logger.warning(f"[handle_manager_reply] Связь для сообщения с ID {replied_message_id} не найдена в user_manager_messages.")
         else:
             # Log if the message is not a reply
-            logger.info(f"[handle_manager_reply] Менеджер @{manager_username} (ID: {manager_id}) отправил сообщение, но оно не является ответом на другое сообщение.")
+            logger.info(f"[handle_manager_reply] Менеджер @{update.message.from_user.username} (ID: {update.message.from_user.id}) отправил сообщение, но оно не является ответом на другое сообщение.")
     else:
-        # Log if the message is not from a manager
+        # Log if the message is not from the managers' group
         logger.info(f"[handle_manager_reply] Сообщение от пользователя @{update.message.from_user.username} (ID: {update.message.from_user.id}) не обрабатывается как ответ менеджера.")
 
 # Main function
@@ -195,10 +180,9 @@ def main():
 
     # Register handlers
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & filters.User(user_id=MANAGER_CHAT_IDS) & filters.REPLY, handle_manager_reply))
+    app.add_handler(MessageHandler(filters.TEXT & filters.Chat(chat_id=MANAGER_GROUP_CHAT_ID) & filters.REPLY, handle_manager_reply))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    # Register the temporary handler
-    app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, handle_group_message))
+
     # Start the bot with webhook
     app.run_webhook(
         listen="0.0.0.0",  # Listen on all interfaces
