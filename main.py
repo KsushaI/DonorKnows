@@ -84,20 +84,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(REPLIES[user_message])
     else:
         logger.info(f"User {update.message.from_user.username} sent: {user_message} to manager")
-        # Если вопроса нет, отправляем сообщение менеджеру
-        await context.bot.send_message(
+        # Если вопроса нет, пересылаем менеджеру
+        forwarded_message = await context.bot.forward_message(
             chat_id=MANAGER_CHAT_ID,
-            text=f"Новый вопрос от пользователя @{user_username} (ID: {user_chat_id}):\n{user_message}"
+            from_chat_id=user_chat_id,
+            message_id=user_message_id,
         )
 
         # Сохраняем связь между сообщением менеджера и пользователя
-        user_manager_messages[update.message.message_id] = {
+        user_manager_messages[forwarded_message.message_id] = {
             "user_chat_id": user_chat_id,
-            "user_username": user_username,
+            "user_username": user_username,  # Сохраняем username пользователя
             "user_message_id": user_message_id
         }
 
-    await update.message.reply_text("Ваш вопрос передан менеджеру. Ожидайте ответа.")
+        await update.message.reply_text("Ваш вопрос передан менеджеру. Ожидайте ответа.")
 
 # Обработка ответов менеджера
 async def handle_manager_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
