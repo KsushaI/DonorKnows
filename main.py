@@ -25,7 +25,7 @@ QUESTIONS = {
         "Когда я получу статус почётного донора?"
     ],
     "Второе": ["1?", "2?", "3?", "4?", "5?", "6?"],
-    "Другое": [
+    "Задать вопрос менеджеру": [
         "Куда я попал?"
     ]
 }
@@ -53,7 +53,11 @@ user_manager_messages = {}
 # Command /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"User {update.message.from_user.username} started the bot.")
-    keyboard = [[category] for category in QUESTIONS.keys()]
+    # Create keyboard layout
+    keyboard = [
+        *[[category] for category in QUESTIONS.keys()],  # Question categories
+        ["Задать вопрос менеджеру"]  # Button below categories
+    ]
     reply_markup = ReplyKeyboardMarkup(keyboard)
     await update.message.reply_text(
         "Вас приветствует бот для доноров🩸\n"
@@ -78,10 +82,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if user_message == BACK_BUTTON:
         # Handle "Back" button
-        keyboard = [[category] for category in QUESTIONS.keys()]
+        keyboard = [
+            ["Задать вопрос❓ менеджеру"],  # Button above categories
+            *[[category] for category in QUESTIONS.keys()]  # Question categories
+        ]
         reply_markup = ReplyKeyboardMarkup(keyboard)
         await update.message.reply_text("Выберите категорию:", reply_markup=reply_markup)
         logger.info(f"[handle_message] Пользователь @{user_username} (ID: {user_chat_id}) нажал кнопку 'Назад'.")
+    elif user_message == "Задать вопрос менеджеру":
+        # Handle "Задать вопрос менеджеру" button
+        await update.message.reply_text("Напишите свой вопрос в строке ниже.")
+        logger.info(
+            f"[handle_message] Пользователь @{user_username} (ID: {user_chat_id}) нажал кнопку 'Задать вопрос менеджеру'.")
     elif user_message in QUESTIONS:
         # Show questions for the selected category
         keyboard = [[question] for question in QUESTIONS[user_message]] + [[BACK_BUTTON]]
