@@ -89,7 +89,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup = ReplyKeyboardMarkup(keyboard)
         await update.message.reply_text("Выберите категорию:", reply_markup=reply_markup)
         logger.info(f"[handle_message] Пользователь @{user_username} (ID: {user_chat_id}) нажал кнопку 'Назад'.")
-    elif user_message == "Задать вопрос менеджеру":
+    elif user_message == "Задать вопрос❓ менеджеру":
         # Handle "Задать вопрос менеджеру" button
         await update.message.reply_text("Напишите свой вопрос в строке ниже:")
         logger.info(
