@@ -111,8 +111,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await update.message.reply_text("Ваш вопрос передан менеджеру. Ожидайте ответа.")
 
-# Обработка ответов менеджера
 async def handle_manager_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Log the incoming message details
+    logger.info(f"Incoming message from user ID: {update.message.from_user.id}, chat ID: {update.message.chat.id}")
+    logger.info(f"Is this a reply? {update.message.reply_to_message is not None}")
+
     # Check if the message is from the manager
     if update.message.from_user.id == MANAGER_CHAT_ID:
         # Получаем username и ID менеджера
