@@ -25,7 +25,7 @@ QUESTIONS = {
         "Когда я получу статус почётного донора?"
     ],
     "Второе": ["1?", "2?", "3?", "4?", "5?", "6?"],
-    "Задать вопрос менеджеру": [
+    "Другое": [
         "Куда я попал?"
     ]
 }
@@ -56,7 +56,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Create keyboard layout
     keyboard = [
         *[[category] for category in QUESTIONS.keys()],  # Question categories
-        ["Задать вопрос менеджеру"]  # Button below categories
+        ["Задать вопрос❓ менеджеру"]  # Button below categories
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard)
     await update.message.reply_text(
@@ -83,15 +83,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_message == BACK_BUTTON:
         # Handle "Back" button
         keyboard = [
-            ["Задать вопрос❓ менеджеру"],  # Button above categories
-            *[[category] for category in QUESTIONS.keys()]  # Question categories
+            *[[category] for category in QUESTIONS.keys()],  # Question categories
+            ["Задать вопрос❓ менеджеру"]  # Button below categories
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard)
         await update.message.reply_text("Выберите категорию:", reply_markup=reply_markup)
         logger.info(f"[handle_message] Пользователь @{user_username} (ID: {user_chat_id}) нажал кнопку 'Назад'.")
     elif user_message == "Задать вопрос менеджеру":
         # Handle "Задать вопрос менеджеру" button
-        await update.message.reply_text("Напишите свой вопрос в строке ниже.")
+        await update.message.reply_text("Напишите свой вопрос в строке ниже:")
         logger.info(
             f"[handle_message] Пользователь @{user_username} (ID: {user_chat_id}) нажал кнопку 'Задать вопрос менеджеру'.")
     elif user_message in QUESTIONS:
