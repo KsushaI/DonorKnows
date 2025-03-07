@@ -187,6 +187,9 @@ def main():
     if not TOKEN:
         raise ValueError("No BOT_TOKEN environment variable found!")
 
+    # Load the PORT environment variable (provided by Render)
+    PORT = int(os.environ.get("PORT", 5000))  # Default to 5000 if PORT is not set
+
     # Create the Application
     app = Application.builder().token(TOKEN).build()
 
@@ -198,7 +201,7 @@ def main():
     # Start the bot with webhook
     app.run_webhook(
         listen="0.0.0.0",  # Listen on all interfaces
-        port=5000,  # Port to listen on
+        port=PORT,  # Use the PORT environment variable
         url_path=TOKEN,  # Webhook path (use bot token for security)
         webhook_url=f"https://donorknows.onrender.com/{TOKEN}"  # Full webhook URL
     )
