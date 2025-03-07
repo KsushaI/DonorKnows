@@ -2,7 +2,8 @@ import os
 import logging
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from threading import Thread
 # Set up logging
 logging.basicConfig(
     level=logging.INFO,
@@ -180,6 +181,18 @@ async def handle_manager_reply(update: Update, context: ContextTypes.DEFAULT_TYP
         # Log if the message is not from the managers' group
         logger.info(f"[handle_manager_reply] Сообщение от пользователя @{update.message.from_user.username} (ID: {update.message.from_user.id}) не обрабатывается как ответ менеджера.")
 
+# Simple HTTP server for health checks
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is alive!")
+
+def run_health_check_server(port):
+    server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
+    print(f"Health check server running on port {port}")
+    server.serve_forever()
+
 # Main function
 def main():
     # Load the bot token from environment variable
@@ -189,6 +202,12 @@ def main():
 
     # Load the PORT environment variable (provided by Render)
     PORT = int(os.environ.get("PORT", 5000))  # Default to 5000 if PORT is not set
+
+    # Start the health check server in a separate thread
+    health_check_port = 8080  # Use a different port for the health check server
+    health_check_thread = Thread(target=run_health_check_server, args=(health_check_port,))
+    health_check_thread.daemon = True
+    health_check_thread.start()
 
     # Create the Application
     app = Application.builder().token(TOKEN).build()
@@ -202,7 +221,7 @@ def main():
     app.run_webhook(
         listen="0.0.0.0",  # Listen on all interfaces
         port=PORT,  # Use the PORT environment variable
-        url_path=TOKEN,  # Webhook path (use bot token for security)
+        url_path=TOKEN,  # Webhook path (must match the path in the webhook URL)
         webhook_url=f"https://donorknows.onrender.com/{TOKEN}"  # Full webhook URL
     )
 
