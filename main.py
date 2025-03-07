@@ -181,18 +181,20 @@ async def handle_manager_reply(update: Update, context: ContextTypes.DEFAULT_TYP
         # Log if the message is not from the managers' group
         logger.info(f"[handle_manager_reply] Сообщение от пользователя @{update.message.from_user.username} (ID: {update.message.from_user.id}) не обрабатывается как ответ менеджера.")
 
-# Simple HTTP server for health checks
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b"Bot is alive!")
 
+    def do_HEAD(self):
+        self.send_response(200)
+        self.end_headers()
+
 def run_health_check_server(port):
     server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
     print(f"Health check server running on port {port}")
     server.serve_forever()
-
 # Main function
 def main():
     # Load the bot token from environment variable
